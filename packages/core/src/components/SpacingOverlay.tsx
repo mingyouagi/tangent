@@ -1,76 +1,81 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from "react";
 
 interface SpacingBox {
-  element: HTMLElement
-  rect: DOMRect
-  margin: { top: number; right: number; bottom: number; left: number }
-  padding: { top: number; right: number; bottom: number; left: number }
+  element: HTMLElement;
+  rect: DOMRect;
+  margin: { top: number; right: number; bottom: number; left: number };
+  padding: { top: number; right: number; bottom: number; left: number };
 }
 
 interface SpacingOverlayProps {
-  enabled: boolean
+  enabled: boolean;
 }
 
 export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
-  const [hoveredElement, setHoveredElement] = useState<SpacingBox | null>(null)
+  const [hoveredElement, setHoveredElement] = useState<SpacingBox | null>(null);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    
+    const target = e.target as HTMLElement;
+
     // Ignore our own overlay elements and the control panel
     if (
-      target.closest('[data-tangent-overlay]') ||
-      target.closest('[data-tangent-panel]')
+      target.closest("[data-tangent-overlay]") ||
+      target.closest("[data-tangent-panel]")
     ) {
-      return
+      return;
     }
 
-    const rect = target.getBoundingClientRect()
-    const styles = window.getComputedStyle(target)
-    
+    const rect = target.getBoundingClientRect();
+    const styles = window.getComputedStyle(target);
+
+    const scaleX = target.offsetWidth > 0 ? rect.width / target.offsetWidth : 1;
+    const scaleY =
+      target.offsetHeight > 0 ? rect.height / target.offsetHeight : 1;
+    const scale = (scaleX + scaleY) / 2;
+
     const margin = {
-      top: parseFloat(styles.marginTop) || 0,
-      right: parseFloat(styles.marginRight) || 0,
-      bottom: parseFloat(styles.marginBottom) || 0,
-      left: parseFloat(styles.marginLeft) || 0,
-    }
-    
-    const padding = {
-      top: parseFloat(styles.paddingTop) || 0,
-      right: parseFloat(styles.paddingRight) || 0,
-      bottom: parseFloat(styles.paddingBottom) || 0,
-      left: parseFloat(styles.paddingLeft) || 0,
-    }
+      top: (parseFloat(styles.marginTop) || 0) * scale,
+      right: (parseFloat(styles.marginRight) || 0) * scale,
+      bottom: (parseFloat(styles.marginBottom) || 0) * scale,
+      left: (parseFloat(styles.marginLeft) || 0) * scale,
+    };
 
-    setHoveredElement({ element: target, rect, margin, padding })
-  }, [])
+    const padding = {
+      top: (parseFloat(styles.paddingTop) || 0) * scale,
+      right: (parseFloat(styles.paddingRight) || 0) * scale,
+      bottom: (parseFloat(styles.paddingBottom) || 0) * scale,
+      left: (parseFloat(styles.paddingLeft) || 0) * scale,
+    };
+
+    setHoveredElement({ element: target, rect, margin, padding });
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    setHoveredElement(null)
-  }, [])
+    setHoveredElement(null);
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
-      setHoveredElement(null)
-      return
+      setHoveredElement(null);
+      return;
     }
 
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseleave', handleMouseLeave)
-    
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
+
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseleave', handleMouseLeave)
-    }
-  }, [enabled, handleMouseMove, handleMouseLeave])
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [enabled, handleMouseMove, handleMouseLeave]);
 
   if (!enabled || !hoveredElement) {
-    return null
+    return null;
   }
 
-  const { rect, margin, padding } = hoveredElement
-  const scrollX = window.scrollX
-  const scrollY = window.scrollY
+  const { rect, margin, padding } = hoveredElement;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
 
   // Calculate positions for the overlay boxes
   const contentBox = {
@@ -78,24 +83,25 @@ export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
     top: rect.top + scrollY + padding.top,
     width: rect.width - padding.left - padding.right,
     height: rect.height - padding.top - padding.bottom,
-  }
+  };
 
   const paddingBox = {
     left: rect.left + scrollX,
     top: rect.top + scrollY,
     width: rect.width,
     height: rect.height,
-  }
+  };
 
   const marginBox = {
     left: rect.left + scrollX - margin.left,
     top: rect.top + scrollY - margin.top,
     width: rect.width + margin.left + margin.right,
     height: rect.height + margin.top + margin.bottom,
-  }
+  };
 
-  const hasMargin = margin.top || margin.right || margin.bottom || margin.left
-  const hasPadding = padding.top || padding.right || padding.bottom || padding.left
+  const hasMargin = margin.top || margin.right || margin.bottom || margin.left;
+  const hasPadding =
+    padding.top || padding.right || padding.bottom || padding.left;
 
   return (
     <div data-tangent-overlay style={styles.container}>
@@ -243,70 +249,73 @@ export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
         }}
       >
         {hoveredElement.element.tagName.toLowerCase()}
-        {hoveredElement.element.className && typeof hoveredElement.element.className === 'string'
-          ? `.${hoveredElement.element.className.split(' ')[0]}`
-          : ''}
+        {hoveredElement.element.className &&
+        typeof hoveredElement.element.className === "string"
+          ? `.${hoveredElement.element.className.split(" ")[0]}`
+          : ""}
         <span style={styles.dimensions}>
-          {' '}
+          {" "}
           {Math.round(rect.width)} × {Math.round(rect.height)}
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
-    pointerEvents: 'none',
+    pointerEvents: "none",
     zIndex: 999998,
   },
   marginBox: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255, 165, 0, 0.3)',
-    border: '1px dashed rgba(255, 165, 0, 0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxSizing: 'border-box',
+    position: "absolute",
+    backgroundColor: "rgba(255, 165, 0, 0.3)",
+    border: "1px dashed rgba(255, 165, 0, 0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
   },
   paddingBox: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0, 255, 159, 0.2)',
-    border: '1px dashed rgba(0, 255, 159, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxSizing: 'border-box',
+    position: "absolute",
+    backgroundColor: "rgba(0, 255, 159, 0.2)",
+    border: "1px dashed rgba(0, 255, 159, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
   },
   contentBox: {
-    position: 'absolute',
-    border: '1px solid rgba(0, 150, 255, 0.8)',
-    boxSizing: 'border-box',
-    pointerEvents: 'none',
+    position: "absolute",
+    border: "1px solid rgba(0, 150, 255, 0.8)",
+    boxSizing: "border-box",
+    pointerEvents: "none",
   },
   label: {
-    fontSize: '10px',
-    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-    color: '#fff',
-    textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
+    fontSize: "10px",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+    color: "#fff",
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.8)",
     fontWeight: 600,
   },
   tooltip: {
-    position: 'absolute',
-    backgroundColor: 'rgba(13, 13, 18, 0.95)',
-    border: '1px solid rgba(0, 255, 159, 0.3)',
-    borderRadius: '4px',
-    padding: '4px 8px',
-    fontSize: '11px',
-    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-    color: '#00ff9f',
-    whiteSpace: 'nowrap',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
+    position: "absolute",
+    backgroundColor: "rgba(13, 13, 18, 0.95)",
+    border: "1px solid rgba(0, 255, 159, 0.3)",
+    borderRadius: "4px",
+    padding: "4px 8px",
+    fontSize: "11px",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+    color: "#00ff9f",
+    whiteSpace: "nowrap",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.4)",
   },
   dimensions: {
-    color: '#888',
+    color: "#888",
   },
-}
+};
