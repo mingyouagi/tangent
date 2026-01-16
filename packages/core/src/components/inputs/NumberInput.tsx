@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface NumberInputProps {
   value: number
@@ -35,6 +35,25 @@ export function NumberInput({
     }
   }
 
+  const adjustValue = useCallback((delta: number) => {
+    const newValue = Math.min(max, Math.max(min, localValue + delta))
+    setLocalValue(newValue)
+    onChange(newValue)
+  }, [localValue, min, max, onChange])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault()
+        adjustValue(e.shiftKey ? 10 : 1)
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        adjustValue(e.shiftKey ? -10 : -1)
+        break
+    }
+  }
+
   return (
     <div style={styles.container}>
       <input
@@ -44,12 +63,14 @@ export function NumberInput({
         step={step}
         value={localValue}
         onChange={handleSliderChange}
+        onKeyDown={handleKeyDown}
         style={styles.slider}
       />
       <input
         type="number"
         value={localValue}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         style={styles.input}
       />
     </div>

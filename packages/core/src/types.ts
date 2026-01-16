@@ -17,6 +17,11 @@ export interface TangentRegistration {
   onUpdate: (key: string, value: TangentValue) => void
 }
 
+export interface HistoryState {
+  canUndo: boolean
+  canRedo: boolean
+}
+
 export interface TangentContextValue {
   registrations: Map<string, TangentRegistration>
   register: (registration: TangentRegistration) => void
@@ -27,4 +32,7 @@ export interface TangentContextValue {
   showCode: boolean
   setShowCode: (show: boolean) => void
   endpoint: string
+  historyState: HistoryState
+  undo: () => void
+  redo: () => void
 }

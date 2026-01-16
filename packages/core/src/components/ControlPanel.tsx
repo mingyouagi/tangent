@@ -2,12 +2,19 @@ import { useTangentContext } from '../context/TangentContext'
 import { NumberInput } from './inputs/NumberInput'
 import { ColorInput } from './inputs/ColorInput'
 import { StringInput } from './inputs/StringInput'
+import { EasingInput } from './inputs/EasingInput'
 import { BooleanInput } from './inputs/BooleanInput'
 import { CodePreview } from './CodePreview'
 import type { TangentValue } from '../types'
 
+const EASING_KEYWORDS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out']
+
+function isEasingValue(value: string): boolean {
+  return value.includes('cubic-bezier') || EASING_KEYWORDS.includes(value)
+}
+
 export function ControlPanel() {
-  const { registrations, updateValue, setIsOpen, showCode, setShowCode } = useTangentContext()
+  const { registrations, updateValue, setIsOpen, showCode, setShowCode, historyState, undo, redo } = useTangentContext()
 
   const renderInput = (
     registrationId: string,
@@ -21,6 +28,9 @@ export function ControlPanel() {
     if (typeof value === 'string') {
       if (value.startsWith('#') || value.startsWith('rgb')) {
         return <ColorInput value={value} onChange={onChange} />
+      }
+      if (isEasingValue(value)) {
+        return <EasingInput value={value} onChange={onChange} />
       }
       return <StringInput value={value} onChange={onChange} />
     }
@@ -38,6 +48,30 @@ export function ControlPanel() {
           <span style={styles.logoText}>TANGENT</span>
         </div>
         <div style={styles.headerActions}>
+          <button
+            style={{
+              ...styles.historyButton,
+              opacity: historyState.canUndo ? 1 : 0.3,
+              cursor: historyState.canUndo ? 'pointer' : 'default',
+            }}
+            onClick={undo}
+            disabled={!historyState.canUndo}
+            title="Undo (⌘Z)"
+          >
+            ↶
+          </button>
+          <button
+            style={{
+              ...styles.historyButton,
+              opacity: historyState.canRedo ? 1 : 0.3,
+              cursor: historyState.canRedo ? 'pointer' : 'default',
+            }}
+            onClick={redo}
+            disabled={!historyState.canRedo}
+            title="Redo (⌘⇧Z)"
+          >
+            ↷
+          </button>
           <button
             style={{
               ...styles.codeButton,
@@ -76,7 +110,7 @@ export function ControlPanel() {
       {showCode && <CodePreview registrations={registrations} />}
 
       <div style={styles.footer}>
-        <span style={styles.shortcut}>⌘⇧T to toggle</span>
+        <span style={styles.shortcut}>⌘⇧T toggle · ⌘Z undo · ⌘⇧Z redo</span>
       </div>
     </div>
   )
@@ -131,7 +165,17 @@ const styles: Record<string, React.CSSProperties> = {
   headerActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
+  },
+  historyButton: {
+    background: 'transparent',
+    border: 'none',
+    color: '#00ff9f',
+    cursor: 'pointer',
+    padding: '4px 6px',
+    fontSize: '16px',
+    fontFamily: 'inherit',
+    transition: 'all 0.2s',
   },
   codeButton: {
     background: 'transparent',

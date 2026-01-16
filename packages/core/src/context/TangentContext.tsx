@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import type { TangentContextValue, TangentRegistration, TangentValue } from '../types'
+import type { TangentContextValue, TangentRegistration, TangentValue, HistoryState } from '../types'
 import { ControlPanel } from '../components/ControlPanel'
 import { getStoredConfig, setStoredConfig, updateStoredConfig } from '../store'
+import { pushHistory, undo as undoHistory, redo as redoHistory, getHistoryState } from '../history'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -12,26 +13,24 @@ interface TangentProviderProps {
   endpoint?: string
 }
 
-const noopRegister = () => {}
-const noopUnregister = () => {}
-const noopUpdateValue = () => {}
-const noopSetIsOpen = () => {}
-const noopSetShowCode = () => {}
+const noopFn = () => {}
 
 const prodContextValue: TangentContextValue = {
   registrations: new Map(),
-  register: noopRegister,
-  unregister: noopUnregister,
-  updateValue: noopUpdateValue,
+  register: noopFn,
+  unregister: noopFn,
+  updateValue: noopFn,
   isOpen: false,
-  setIsOpen: noopSetIsOpen,
+  setIsOpen: noopFn,
   showCode: false,
-  setShowCode: noopSetShowCode,
+  setShowCode: noopFn,
   endpoint: '',
+  historyState: { canUndo: false, canRedo: false },
+  undo: noopFn,
+  redo: noopFn,
 }
 
 export function TangentProvider({ children, endpoint = '/__tangent/update' }: TangentProviderProps) {
-  // Production: render children only, no overhead
   if (!isDev) {
     return <>{children}</>
   }
@@ -43,6 +42,12 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
   const [registrations, setRegistrations] = useState<Map<string, TangentRegistration>>(new Map())
   const [isOpen, setIsOpen] = useState(true)
   const [showCode, setShowCode] = useState(false)
+  const [historyState, setHistoryState] = useState<HistoryState>({ canUndo: false, canRedo: false })
+
+  const updateHistoryState = useCallback(() => {
+    const state = getHistoryState()
+    setHistoryState({ canUndo: state.canUndo, canRedo: state.canRedo })
+  }, [])
 
   const register = useCallback((registration: TangentRegistration) => {
     const storedConfig = getStoredConfig(registration.id)
@@ -69,23 +74,73 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
     })
   }, [])
 
-  const updateValue = useCallback((id: string, key: string, value: TangentValue) => {
+  const updateValue = useCallback((id: string, key: string, value: TangentValue, skipHistory = false) => {
+    const registration = registrations.get(id)
+    const oldValue = registration?.currentConfig[key]
+    
+    if (!skipHistory && oldValue !== value) {
+      pushHistory(id, key, oldValue, value)
+      updateHistoryState()
+    }
+
     updateStoredConfig(id, key, value)
     
     setRegistrations(prev => {
       const next = new Map(prev)
-      const registration = next.get(id)
-      if (registration) {
+      const reg = next.get(id)
+      if (reg) {
         const updated = {
-          ...registration,
-          currentConfig: { ...registration.currentConfig, [key]: value },
+          ...reg,
+          currentConfig: { ...reg.currentConfig, [key]: value },
         }
         next.set(id, updated)
-        registration.onUpdate(key, value)
+        reg.onUpdate(key, value)
       }
       return next
     })
-  }, [])
+  }, [registrations, updateHistoryState])
+
+  const undo = useCallback(() => {
+    const entry = undoHistory()
+    if (entry) {
+      updateStoredConfig(entry.id, entry.key, entry.oldValue)
+      setRegistrations(prev => {
+        const next = new Map(prev)
+        const reg = next.get(entry.id)
+        if (reg) {
+          const updated = {
+            ...reg,
+            currentConfig: { ...reg.currentConfig, [entry.key]: entry.oldValue as TangentValue },
+          }
+          next.set(entry.id, updated)
+          reg.onUpdate(entry.key, entry.oldValue as TangentValue)
+        }
+        return next
+      })
+      updateHistoryState()
+    }
+  }, [updateHistoryState])
+
+  const redo = useCallback(() => {
+    const entry = redoHistory()
+    if (entry) {
+      updateStoredConfig(entry.id, entry.key, entry.newValue)
+      setRegistrations(prev => {
+        const next = new Map(prev)
+        const reg = next.get(entry.id)
+        if (reg) {
+          const updated = {
+            ...reg,
+            currentConfig: { ...reg.currentConfig, [entry.key]: entry.newValue as TangentValue },
+          }
+          next.set(entry.id, updated)
+          reg.onUpdate(entry.key, entry.newValue as TangentValue)
+        }
+        return next
+      })
+      updateHistoryState()
+    }
+  }, [updateHistoryState])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,11 +148,21 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
         e.preventDefault()
         setIsOpen(prev => !prev)
       }
+      // Undo: Cmd+Z / Ctrl+Z
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      }
+      // Redo: Cmd+Shift+Z / Ctrl+Shift+Z
+      if (e.key === 'z' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault()
+        redo()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [undo, redo])
 
   const contextValue: TangentContextValue = {
     registrations,
@@ -109,6 +174,9 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
     showCode,
     setShowCode,
     endpoint: endpoint!,
+    historyState,
+    undo,
+    redo,
   }
 
   return (
@@ -122,7 +190,6 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
 export function useTangentContext(): TangentContextValue {
   const context = useContext(TangentContext)
   
-  // Production: return noop context
   if (!isDev) {
     return prodContextValue
   }
