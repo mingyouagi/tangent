@@ -8,10 +8,25 @@ interface UseTangentOptions {
   filePath?: string
 }
 
+const isDev = process.env.NODE_ENV === 'development'
+
 export function useTangent<T extends TangentConfig>(
   id: string,
   defaultValues: T,
   options: UseTangentOptions = {}
+): T {
+  // Production: return default values directly (zero overhead)
+  if (!isDev) {
+    return defaultValues
+  }
+
+  return useTangentDev(id, defaultValues, options)
+}
+
+function useTangentDev<T extends TangentConfig>(
+  id: string,
+  defaultValues: T,
+  options: UseTangentOptions
 ): T {
   const { register, unregister, endpoint } = useTangentContext()
   

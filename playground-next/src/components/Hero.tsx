@@ -4,10 +4,10 @@ import { useTangent } from 'tangent-core'
 
 export function Hero() {
   const styles = useTangent('HeroSection', {
-    padding: 60,
+    padding: 409,
     headerColor: '#ff6b6b',
     fontSize: 190,
-    opacity: 1,
+    opacity: 305,
   })
 
   return (

@@ -3,15 +3,43 @@ import type { TangentContextValue, TangentRegistration, TangentValue } from '../
 import { ControlPanel } from '../components/ControlPanel'
 import { getStoredConfig, setStoredConfig, updateStoredConfig } from '../store'
 
+const isDev = process.env.NODE_ENV === 'development'
+
 export const TangentContext = createContext<TangentContextValue | null>(null)
 
 interface TangentProviderProps {
   children: ReactNode
-  /** API endpoint for updates. Defaults to '/__tangent/update' (Vite) */
   endpoint?: string
 }
 
+const noopRegister = () => {}
+const noopUnregister = () => {}
+const noopUpdateValue = () => {}
+const noopSetIsOpen = () => {}
+const noopSetShowCode = () => {}
+
+const prodContextValue: TangentContextValue = {
+  registrations: new Map(),
+  register: noopRegister,
+  unregister: noopUnregister,
+  updateValue: noopUpdateValue,
+  isOpen: false,
+  setIsOpen: noopSetIsOpen,
+  showCode: false,
+  setShowCode: noopSetShowCode,
+  endpoint: '',
+}
+
 export function TangentProvider({ children, endpoint = '/__tangent/update' }: TangentProviderProps) {
+  // Production: render children only, no overhead
+  if (!isDev) {
+    return <>{children}</>
+  }
+
+  return <TangentProviderDev endpoint={endpoint}>{children}</TangentProviderDev>
+}
+
+function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
   const [registrations, setRegistrations] = useState<Map<string, TangentRegistration>>(new Map())
   const [isOpen, setIsOpen] = useState(true)
   const [showCode, setShowCode] = useState(false)
@@ -80,7 +108,7 @@ export function TangentProvider({ children, endpoint = '/__tangent/update' }: Ta
     setIsOpen,
     showCode,
     setShowCode,
-    endpoint,
+    endpoint: endpoint!,
   }
 
   return (
@@ -93,6 +121,12 @@ export function TangentProvider({ children, endpoint = '/__tangent/update' }: Ta
 
 export function useTangentContext(): TangentContextValue {
   const context = useContext(TangentContext)
+  
+  // Production: return noop context
+  if (!isDev) {
+    return prodContextValue
+  }
+  
   if (!context) {
     throw new Error('useTangentContext must be used within a TangentProvider')
   }
