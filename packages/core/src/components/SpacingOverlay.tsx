@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 
+import { useTangentContext } from "../context/TangentContext";
+
 interface SpacingBox {
   element: HTMLElement;
   rect: DOMRect;
   margin: { top: number; right: number; bottom: number; left: number };
   padding: { top: number; right: number; bottom: number; left: number };
+  id?: string;
 }
 
 interface SpacingOverlayProps {
@@ -13,6 +16,7 @@ interface SpacingOverlayProps {
 
 export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
   const [hoveredElement, setHoveredElement] = useState<SpacingBox | null>(null);
+  const { setHighlightedId } = useTangentContext();
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -27,6 +31,11 @@ export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
 
     const rect = target.getBoundingClientRect();
     const styles = window.getComputedStyle(target);
+
+    // Get the Tangent ID from the element or its closest parent
+    const tangentId = target
+      .closest("[data-tangent-id]")
+      ?.getAttribute("data-tangent-id");
 
     const scaleX = target.offsetWidth > 0 ? rect.width / target.offsetWidth : 1;
     const scaleY =
@@ -47,16 +56,33 @@ export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
       left: (parseFloat(styles.paddingLeft) || 0) * scale,
     };
 
-    setHoveredElement({ element: target, rect, margin, padding });
+    setHoveredElement({
+      element: target,
+      rect,
+      margin,
+      padding,
+      id: tangentId || undefined,
+    });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
     setHoveredElement(null);
-  }, []);
+    setHighlightedId(null);
+  }, [setHighlightedId]);
+
+  // Update highlighted ID when hovered element changes
+  useEffect(() => {
+    if (hoveredElement?.id) {
+      setHighlightedId(hoveredElement.id);
+    } else {
+      setHighlightedId(null);
+    }
+  }, [hoveredElement?.id, setHighlightedId]);
 
   useEffect(() => {
     if (!enabled) {
       setHoveredElement(null);
+      setHighlightedId(null);
       return;
     }
 
@@ -66,8 +92,9 @@ export function SpacingOverlay({ enabled }: SpacingOverlayProps) {
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseleave", handleMouseLeave);
+      setHighlightedId(null);
     };
-  }, [enabled, handleMouseMove, handleMouseLeave]);
+  }, [enabled, handleMouseMove, handleMouseLeave, setHighlightedId]);
 
   if (!enabled || !hoveredElement) {
     return null;
