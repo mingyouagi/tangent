@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import type { TangentContextValue, TangentRegistration, TangentValue, HistoryState, ViewportSize } from '../types'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import type { TangentContextValue, TangentRegistration, TangentValue, HistoryState, ViewportSize, UnsavedChange } from '../types'
 import { ControlPanel } from '../components/ControlPanel'
 import { SpacingOverlay } from '../components/SpacingOverlay'
 import { ResponsivePreview } from '../components/ResponsivePreview'
@@ -16,6 +16,7 @@ interface TangentProviderProps {
 }
 
 const noopFn = () => {}
+const noopAsync = async () => {}
 
 const prodContextValue: TangentContextValue = {
   registrations: new Map(),
@@ -34,6 +35,12 @@ const prodContextValue: TangentContextValue = {
   historyState: { canUndo: false, canRedo: false },
   undo: noopFn,
   redo: noopFn,
+  unsavedChanges: [],
+  saveAll: noopAsync,
+  saveSection: noopAsync,
+  resetSection: noopFn,
+  resetAll: noopFn,
+  isSaving: false,
 }
 
 export function TangentProvider({ children, endpoint = '/__tangent/update' }: TangentProviderProps) {
@@ -51,6 +58,10 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
   const [showSpacing, setShowSpacing] = useState(false)
   const [viewport, setViewport] = useState<ViewportSize>('full')
   const [historyState, setHistoryState] = useState<HistoryState>({ canUndo: false, canRedo: false })
+  const [isSaving, setIsSaving] = useState(false)
+  
+  const endpointRef = useRef(endpoint)
+  endpointRef.current = endpoint
 
   const updateHistoryState = useCallback(() => {
     const state = getHistoryState()
@@ -69,6 +80,7 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
       next.set(registration.id, {
         ...registration,
         currentConfig: storedConfig ?? { ...registration.originalConfig },
+        sourceConfig: { ...registration.originalConfig }, // Track what's in source
       })
       return next
     })
@@ -107,6 +119,118 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
       return next
     })
   }, [registrations, updateHistoryState])
+
+  // Calculate unsaved changes
+  const unsavedChanges: UnsavedChange[] = []
+  registrations.forEach((reg, id) => {
+    Object.keys(reg.currentConfig).forEach(key => {
+      const currentValue = reg.currentConfig[key]
+      const sourceValue = reg.sourceConfig[key]
+      if (currentValue !== sourceValue) {
+        unsavedChanges.push({
+          id,
+          key,
+          oldValue: sourceValue,
+          newValue: currentValue,
+        })
+      }
+    })
+  })
+
+  // Save all changes to source files
+  const saveAll = useCallback(async () => {
+    if (isSaving || unsavedChanges.length === 0) return
+    
+    setIsSaving(true)
+    try {
+      for (const change of unsavedChanges) {
+        const reg = registrations.get(change.id)
+        if (reg) {
+          await reg.onSave(change.key, change.newValue)
+        }
+      }
+      
+      // Update sourceConfig to match currentConfig
+      setRegistrations(prev => {
+        const next = new Map(prev)
+        next.forEach((reg, id) => {
+          next.set(id, {
+            ...reg,
+            sourceConfig: { ...reg.currentConfig },
+          })
+        })
+        return next
+      })
+    } catch (error) {
+      console.error('[tangent] Save failed:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [isSaving, unsavedChanges, registrations])
+
+  // Save a single section
+  const saveSection = useCallback(async (id: string) => {
+    const reg = registrations.get(id)
+    if (!reg || isSaving) return
+    
+    setIsSaving(true)
+    try {
+      const sectionChanges = unsavedChanges.filter(c => c.id === id)
+      for (const change of sectionChanges) {
+        await reg.onSave(change.key, change.newValue)
+      }
+      
+      // Update sourceConfig for this section
+      setRegistrations(prev => {
+        const next = new Map(prev)
+        const r = next.get(id)
+        if (r) {
+          next.set(id, {
+            ...r,
+            sourceConfig: { ...r.currentConfig },
+          })
+        }
+        return next
+      })
+    } catch (error) {
+      console.error('[tangent] Save section failed:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [registrations, isSaving, unsavedChanges])
+
+  // Reset a section to source values
+  const resetSection = useCallback((id: string) => {
+    const reg = registrations.get(id)
+    if (!reg) return
+    
+    // Reset stored config
+    setStoredConfig(id, reg.sourceConfig)
+    
+    // Update state
+    setRegistrations(prev => {
+      const next = new Map(prev)
+      const r = next.get(id)
+      if (r) {
+        next.set(id, {
+          ...r,
+          currentConfig: { ...r.sourceConfig },
+        })
+        // Notify component of reset
+        Object.keys(r.sourceConfig).forEach(key => {
+          r.onUpdate(key, r.sourceConfig[key])
+        })
+      }
+      return next
+    })
+  }, [registrations])
+
+  // Reset all sections
+  const resetAll = useCallback(() => {
+    registrations.forEach((_, id) => {
+      resetSection(id)
+    })
+  }, [registrations, resetSection])
 
   const undo = useCallback(() => {
     const entry = undoHistory()
@@ -160,6 +284,11 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
         e.preventDefault()
         setShowSpacing(prev => !prev)
       }
+      // Cmd+S to save all
+      if (e.key === 's' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault()
+        saveAll()
+      }
       if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault()
         undo()
@@ -172,7 +301,7 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo])
+  }, [undo, redo, saveAll])
 
   const contextValue: TangentContextValue = {
     registrations,
@@ -191,6 +320,12 @@ function TangentProviderDev({ children, endpoint }: TangentProviderProps) {
     historyState,
     undo,
     redo,
+    unsavedChanges,
+    saveAll,
+    saveSection,
+    resetSection,
+    resetAll,
+    isSaving,
   }
 
   return (

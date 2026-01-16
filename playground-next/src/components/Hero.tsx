@@ -8,7 +8,7 @@ export function Hero() {
     headerColor: '#00ff9f',
     fontSize: 48,
     opacity: 1,
-    heroGradient: 'radial-gradient(circle, rgba(0, 255, 159, 0.15) 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%)',
+    heroGradient: 'radial-gradient(circle, rgba(0, 255, 159, 0.15) 0%, rgba(0, 212, 255, 0.1) 50%, #ffffff 52%, transparent 100%)',
     titleShadow: '0px 0px 40px 0px rgba(0, 255, 159, 0.4)',
   })
 

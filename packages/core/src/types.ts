@@ -14,7 +14,9 @@ export interface TangentRegistration {
   filePath: string
   originalConfig: TangentConfig
   currentConfig: TangentConfig
+  sourceConfig: TangentConfig  // What's actually in the source file
   onUpdate: (key: string, value: TangentValue) => void
+  onSave: (key: string, value: TangentValue) => Promise<void>
 }
 
 export interface HistoryState {
@@ -23,6 +25,13 @@ export interface HistoryState {
 }
 
 export type ViewportSize = 'mobile' | 'tablet' | 'desktop' | 'full'
+
+export interface UnsavedChange {
+  id: string
+  key: string
+  oldValue: TangentValue
+  newValue: TangentValue
+}
 
 export interface TangentContextValue {
   registrations: Map<string, TangentRegistration>
@@ -41,4 +50,11 @@ export interface TangentContextValue {
   historyState: HistoryState
   undo: () => void
   redo: () => void
+  // New: save functionality
+  unsavedChanges: UnsavedChange[]
+  saveAll: () => Promise<void>
+  saveSection: (id: string) => Promise<void>
+  resetSection: (id: string) => void
+  resetAll: () => void
+  isSaving: boolean
 }

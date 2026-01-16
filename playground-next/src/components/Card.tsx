@@ -4,11 +4,11 @@ import { useTangent } from 'tangent-core'
 
 export function Card() {
   const styles = useTangent('CardComponent', {
-    borderRadius: 12,
+    borderRadius: 702,
     padding: 184,
-    cardGradient: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+    cardGradient: 'linear-gradient(222deg, #1a1a2e 0%, #16213e 100%)',
     borderColor: '#333',
-    cardShadow: '25px 3px 33px 10px rgba(0, 0, 0, 0.3)',
+    cardShadow: '25px 18px 33px 10px rgba(0, 0, 0, 0.3)',
   })
 
   return (

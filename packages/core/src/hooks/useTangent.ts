@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { TangentConfig, TangentValue } from '../types'
 import { useTangentContext } from '../context/TangentContext'
-import { debounce } from '../utils/debounce'
 import { getStoredConfig } from '../store'
 
 interface UseTangentOptions {
@@ -36,41 +35,39 @@ function useTangentDev<T extends TangentConfig>(
   const filePathRef = useRef(options.filePath)
   const idRef = useRef(id)
   const defaultValuesRef = useRef(defaultValues)
-
   const endpointRef = useRef(endpoint)
   endpointRef.current = endpoint
 
-  const sendUpdate = useMemo(
-    () =>
-      debounce(async (key: string, value: TangentValue) => {
-        const filePath = filePathRef.current
-        if (!filePath) {
-          console.warn('[tangent] No filePath provided, skipping server update')
-          return
-        }
-
-        try {
-          const response = await fetch(endpointRef.current, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filePath, id: idRef.current, key, value }),
-          })
-
-          if (!response.ok) {
-            const error = await response.json()
-            console.error('[tangent] Update failed:', error)
-          }
-        } catch (error) {
-          console.error('[tangent] Network error:', error)
-        }
-      }, 500),
-    []
-  )
-
+  // Handle updates from the control panel (just update local state, no server request)
   const handleUpdate = useCallback((key: string, value: TangentValue) => {
     setValues(prev => ({ ...prev, [key]: value }))
-    sendUpdate(key, value)
-  }, [sendUpdate])
+  }, [])
+
+  // Save a single key to the source file (called when user clicks Save)
+  const handleSave = useCallback(async (key: string, value: TangentValue) => {
+    const filePath = filePathRef.current
+    if (!filePath) {
+      console.warn('[tangent] No filePath provided, skipping server update')
+      return
+    }
+
+    try {
+      const response = await fetch(endpointRef.current, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, id: idRef.current, key, value }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('[tangent] Save failed:', error)
+        throw new Error(error.message || 'Save failed')
+      }
+    } catch (error) {
+      console.error('[tangent] Network error:', error)
+      throw error
+    }
+  }, [])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -79,12 +76,14 @@ function useTangentDev<T extends TangentConfig>(
         filePath: filePathRef.current || '',
         originalConfig: { ...defaultValuesRef.current },
         currentConfig: { ...defaultValuesRef.current },
+        sourceConfig: { ...defaultValuesRef.current },
         onUpdate: handleUpdate,
+        onSave: handleSave,
       })
     })
 
     return () => unregister(id)
-  }, [id, register, unregister, handleUpdate])
+  }, [id, register, unregister, handleUpdate, handleSave])
 
   return values
 }

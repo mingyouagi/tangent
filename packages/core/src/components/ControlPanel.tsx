@@ -77,7 +77,24 @@ function injectScrollbarStyles() {
 }
 
 export function ControlPanel() {
-  const { registrations, updateValue, setIsOpen, showCode, setShowCode, showSpacing, setShowSpacing, viewport, setViewport, historyState, undo, redo } = useTangentContext()
+  const { 
+    registrations, 
+    updateValue, 
+    setIsOpen, 
+    showCode, 
+    setShowCode, 
+    showSpacing, 
+    setShowSpacing, 
+    viewport, 
+    setViewport, 
+    historyState, 
+    undo, 
+    redo,
+    unsavedChanges,
+    saveAll,
+    resetSection,
+    isSaving,
+  } = useTangentContext()
   
   const [collapsed, setCollapsed] = useState(false)
   const [position, setPosition] = useState<Position>(getInitialPosition)
@@ -193,7 +210,6 @@ export function ControlPanel() {
     const query = searchQuery.toLowerCase()
     return sorted
       .map(([id, registration]) => {
-        // Filter keys that match the search
         const matchingKeys = Object.keys(registration.currentConfig).filter(key => 
           key.toLowerCase().includes(query) || id.toLowerCase().includes(query)
         )
@@ -211,6 +227,13 @@ export function ControlPanel() {
   const totalControls = useMemo(() => {
     return Array.from(registrations.values()).reduce((sum, reg) => sum + Object.keys(reg.currentConfig).length, 0)
   }, [registrations])
+
+  // Get unsaved changes count per section
+  const getUnsavedCountForSection = useCallback((id: string) => {
+    return unsavedChanges.filter(c => c.id === id).length
+  }, [unsavedChanges])
+
+  const hasUnsavedChanges = unsavedChanges.length > 0
 
   return (
     <div 
@@ -262,6 +285,25 @@ export function ControlPanel() {
               >
                 ↷
               </button>
+              
+              {/* Save button */}
+              <button
+                style={{
+                  ...styles.saveButton,
+                  opacity: hasUnsavedChanges ? 1 : 0.4,
+                  cursor: hasUnsavedChanges ? 'pointer' : 'default',
+                  backgroundColor: hasUnsavedChanges ? 'rgba(0, 255, 159, 0.2)' : 'transparent',
+                }}
+                onClick={saveAll}
+                disabled={!hasUnsavedChanges || isSaving}
+                title={`Save to source (⌘S) - ${unsavedChanges.length} unsaved`}
+              >
+                {isSaving ? '...' : '💾'}
+                {hasUnsavedChanges && (
+                  <span style={styles.saveBadge}>{unsavedChanges.length}</span>
+                )}
+              </button>
+              
               <button
                 style={{
                   ...styles.iconButton,
@@ -346,18 +388,37 @@ export function ControlPanel() {
                 const isCollapsed = collapsedSections.has(id)
                 const sortedKeys = (keys || Object.keys(registration.currentConfig)).sort()
                 const controlCount = Object.keys(registration.currentConfig).length
+                const unsavedCount = getUnsavedCountForSection(id)
                 
                 return (
                   <div key={id} style={styles.section}>
-                    <button 
-                      style={styles.sectionHeader}
-                      onClick={() => toggleSection(id)}
-                      title={isCollapsed ? 'Expand section' : 'Collapse section'}
-                    >
-                      <span style={styles.sectionToggle}>{isCollapsed ? '▶' : '▼'}</span>
-                      <span style={styles.sectionTitle}>{id}</span>
-                      <span style={styles.sectionCount}>{controlCount}</span>
-                    </button>
+                    <div style={styles.sectionHeaderRow}>
+                      <button 
+                        style={styles.sectionHeader}
+                        onClick={() => toggleSection(id)}
+                        title={isCollapsed ? 'Expand section' : 'Collapse section'}
+                      >
+                        <span style={styles.sectionToggle}>{isCollapsed ? '▶' : '▼'}</span>
+                        <span style={styles.sectionTitle}>{id}</span>
+                        {unsavedCount > 0 && (
+                          <span style={styles.unsavedBadge}>●{unsavedCount}</span>
+                        )}
+                        <span style={styles.sectionCount}>{controlCount}</span>
+                      </button>
+                      
+                      {unsavedCount > 0 && (
+                        <button
+                          style={styles.resetButton}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            resetSection(id)
+                          }}
+                          title="Reset to source values"
+                        >
+                          ↺
+                        </button>
+                      )}
+                    </div>
                     
                     {!isCollapsed && (
                       <div style={styles.controls}>
@@ -365,9 +426,17 @@ export function ControlPanel() {
                           const currentValue = registration.currentConfig[key]
                           if (currentValue === undefined) return null
                           
+                          const isModified = registration.sourceConfig[key] !== currentValue
+                          
                           return (
                             <div key={`${id}-${key}`} style={styles.controlRow}>
-                              <label style={styles.label}>{key}</label>
+                              <label style={{
+                                ...styles.label,
+                                color: isModified ? '#00ff9f' : '#888',
+                              }}>
+                                {key}
+                                {isModified && <span style={styles.modifiedDot}>●</span>}
+                              </label>
                               <div style={styles.inputWrapper} data-no-drag>
                                 {renderInput(id, key, currentValue, (value) =>
                                   updateValue(id, key, value)
@@ -387,7 +456,13 @@ export function ControlPanel() {
           {showCode && <CodePreview registrations={registrations} />}
 
           <div style={styles.footer}>
-            <span style={styles.shortcut}>⌘⇧T toggle · drag to move · click section to collapse</span>
+            {hasUnsavedChanges ? (
+              <span style={styles.unsavedHint}>
+                ● {unsavedChanges.length} unsaved · ⌘S to save
+              </span>
+            ) : (
+              <span style={styles.shortcut}>⌘⇧T toggle · ⌘S save · drag to move</span>
+            )}
           </div>
 
           <div 
@@ -460,6 +535,31 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontFamily: 'inherit',
     transition: 'all 0.2s',
+  },
+  saveButton: {
+    position: 'relative',
+    background: 'transparent',
+    border: '1px solid rgba(0, 255, 159, 0.3)',
+    borderRadius: '4px',
+    color: '#00ff9f',
+    cursor: 'pointer',
+    padding: '3px 6px',
+    fontSize: '12px',
+    fontFamily: 'inherit',
+    transition: 'all 0.2s',
+  },
+  saveBadge: {
+    position: 'absolute',
+    top: '-6px',
+    right: '-6px',
+    backgroundColor: '#ff4757',
+    color: '#fff',
+    fontSize: '9px',
+    fontWeight: 700,
+    padding: '1px 4px',
+    borderRadius: '8px',
+    minWidth: '14px',
+    textAlign: 'center',
   },
   iconButton: {
     background: 'transparent',
@@ -552,11 +652,16 @@ const styles: Record<string, React.CSSProperties> = {
   section: {
     marginBottom: '8px',
   },
+  sectionHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
   sectionHeader: {
+    flex: 1,
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    width: '100%',
     padding: '6px 8px',
     fontSize: '11px',
     fontWeight: 600,
@@ -586,6 +691,22 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '2px 6px',
     borderRadius: '10px',
   },
+  unsavedBadge: {
+    fontSize: '9px',
+    color: '#ff4757',
+    fontWeight: 700,
+  },
+  resetButton: {
+    background: 'transparent',
+    border: '1px solid rgba(255, 71, 87, 0.3)',
+    borderRadius: '4px',
+    color: '#ff4757',
+    cursor: 'pointer',
+    padding: '4px 6px',
+    fontSize: '12px',
+    fontFamily: 'inherit',
+    transition: 'all 0.2s',
+  },
   controls: {
     display: 'flex',
     flexDirection: 'column',
@@ -598,10 +719,15 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '4px',
   },
   label: {
-    color: '#888',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
     fontSize: '10px',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
+  },
+  modifiedDot: {
+    fontSize: '8px',
   },
   inputWrapper: {
     flex: 1,
@@ -615,6 +741,11 @@ const styles: Record<string, React.CSSProperties> = {
   shortcut: {
     color: '#555',
     fontSize: '9px',
+  },
+  unsavedHint: {
+    color: '#ff4757',
+    fontSize: '9px',
+    fontWeight: 500,
   },
   resizeHandle: {
     position: 'absolute',
