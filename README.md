@@ -189,7 +189,6 @@ Click the `</>` button to open the code preview panel:
 - **Diff tab** - Shows changes as a diff from original values
 - **CSS Vars tab** - Exports all values as CSS custom properties
 
-![CSS Variables Export](./tangent-css-vars.png)
 
 ```css
 :root {
