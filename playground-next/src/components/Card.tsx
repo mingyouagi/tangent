@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { useTangent } from 'tangent-core'
+import { useTangent } from "tangent-core";
 
 export function Card() {
-  const styles = useTangent('CardComponent', {
-    borderRadius: 702,
-    padding: 184,
-    cardGradient: 'linear-gradient(222deg, #1a1a2e 0%, #16213e 100%)',
-    borderColor: '#333',
-    cardShadow: '25px 18px 33px 10px rgba(0, 0, 0, 0.3)',
-  })
+  const styles = useTangent("CardComponent", {
+    borderRadius: 12,
+    padding: 24,
+    cardGradient: "linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)",
+    borderColor: "#333",
+    cardShadow: "0px 4px 20px 0px rgba(0, 0, 0, 0.3)",
+  });
 
   return (
     <div
@@ -21,11 +21,11 @@ export function Card() {
         boxShadow: styles.cardShadow,
       }}
     >
-      <h3 style={{ color: '#fff', marginBottom: '12px' }}>Feature Card</h3>
-      <p style={{ color: '#888', lineHeight: 1.6 }}>
-        Adjust the styling of this card using the Tangent control panel.
-        Try the new BoxShadow and Gradient editors!
+      <h3 style={{ color: "#fff", marginBottom: "12px" }}>Feature Card</h3>
+      <p style={{ color: "#888", lineHeight: 1.6 }}>
+        Adjust the styling of this card using the Tangent control panel. Try the
+        new BoxShadow and Gradient editors!
       </p>
     </div>
-  )
+  );
 }
