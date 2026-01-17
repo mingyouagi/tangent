@@ -2,7 +2,7 @@
 
 Visual Tuner for AI-generated code. Adjust UI values in the browser and save changes directly to source files.
 
-![Tangent Demo](./tangent-panel.png)
+![Tangent Demo](./assets/tangent.gif)
 
 ## Features
 

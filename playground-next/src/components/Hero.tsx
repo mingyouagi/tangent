@@ -4,9 +4,9 @@ import { useTangent, TangentRoot } from "tangent-core";
 
 export function Hero() {
   const styles = useTangent("HeroSection", {
-    padding: 80,
-    headerColor: "#00ff9f",
-    fontSize: 48,
+    padding: 85,
+    headerColor: "#89b3a3",
+    fontSize: 51,
     opacity: 1,
     heroGradient:
       "radial-gradient(circle, rgba(0, 255, 159, 0.15) 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%)",
