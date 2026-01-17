@@ -15,6 +15,7 @@ Visual Tuner for AI-generated code. Adjust UI values in the browser and save cha
 - ↩️ **Undo/Redo** - Full history support with keyboard shortcuts
 - 📱 **Responsive Preview** - Test layouts at different viewport sizes
 - 🔍 **Search & Filter** - Quickly find controls in large projects
+- 🔦 **Element Highlighting** - Hover elements in your app to highlight them in the control panel
 - 📐 **Spacing Overlay** - Visualize margins and padding
 
 ## Installation
@@ -38,23 +39,23 @@ npm install tangent-core next-plugin-tangent
 **Vite** (`vite.config.ts`):
 
 ```ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tangent from 'vite-plugin-tangent'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tangent from "vite-plugin-tangent";
 
 export default defineConfig({
   plugins: [react(), tangent()],
-})
+});
 ```
 
 **Next.js** (`next.config.js`):
 
 ```js
-const { withTangent } = require('next-plugin-tangent')
+const { withTangent } = require("next-plugin-tangent");
 
 module.exports = withTangent({
   // your next config
-})
+});
 ```
 
 ### 2. Add Provider
@@ -62,23 +63,19 @@ module.exports = withTangent({
 **Vite** (`App.tsx`):
 
 ```tsx
-import { TangentProvider } from 'tangent-core'
+import { TangentProvider } from "tangent-core";
 
 function App() {
-  return (
-    <TangentProvider>
-      {/* your app */}
-    </TangentProvider>
-  )
+  return <TangentProvider>{/* your app */}</TangentProvider>;
 }
 ```
 
 **Next.js** (`layout.tsx`):
 
 ```tsx
-'use client'
+"use client";
 
-import { TangentProvider } from 'tangent-core'
+import { TangentProvider } from "tangent-core";
 
 export default function RootLayout({ children }) {
   return (
@@ -89,7 +86,7 @@ export default function RootLayout({ children }) {
         </TangentProvider>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -98,38 +95,43 @@ export default function RootLayout({ children }) {
 Create `app/api/tangent/update/route.ts`:
 
 ```ts
-import { POST, GET } from 'next-plugin-tangent/api'
-export { POST, GET }
+import { POST, GET } from "next-plugin-tangent/api";
+export { POST, GET };
 ```
 
 ### 4. Use the Hook
 
 ```tsx
-import { useTangent } from 'tangent-core'
+import { useTangent, TangentRoot } from "tangent-core";
 
 function Hero() {
-  const styles = useTangent('HeroSection', {
+  const styles = useTangent("HeroSection", {
     padding: 60,
-    headerColor: '#00ff9f',
+    headerColor: "#00ff9f",
     fontSize: 48,
-    heroGradient: 'linear-gradient(135deg, #00ff9f 0%, #00d4ff 100%)',
-    titleShadow: '0px 4px 20px 0px rgba(0, 255, 159, 0.4)',
-  })
+    heroGradient: "linear-gradient(135deg, #00ff9f 0%, #00d4ff 100%)",
+    titleShadow: "0px 4px 20px 0px rgba(0, 255, 159, 0.4)",
+  });
 
   return (
-    <div style={{ 
-      padding: styles.padding,
-      background: styles.heroGradient,
-    }}>
-      <h1 style={{ 
-        color: styles.headerColor,
-        fontSize: styles.fontSize,
-        textShadow: styles.titleShadow,
-      }}>
+    <TangentRoot
+      tangent={styles}
+      style={{
+        padding: styles.padding,
+        background: styles.heroGradient,
+      }}
+    >
+      <h1
+        style={{
+          color: styles.headerColor,
+          fontSize: styles.fontSize,
+          textShadow: styles.titleShadow,
+        }}
+      >
         Welcome
       </h1>
-    </div>
-  )
+    </TangentRoot>
+  );
 }
 ```
 
@@ -145,19 +147,20 @@ Once set up, a floating control panel appears in your app:
 
 ## Supported Value Types
 
-| Type | Control | Example |
-|------|---------|---------|
-| `number` | Slider + input | `padding: 60` |
-| `string` (hex/rgb color) | Color picker | `color: '#00ff9f'` |
-| `string` (gradient) | Gradient editor | `background: 'linear-gradient(...)'` |
-| `string` (box-shadow) | Shadow editor | `boxShadow: '0px 4px 20px...'` |
-| `string` (easing) | Curve editor | `easing: 'cubic-bezier(0.4, 0, 0.2, 1)'` |
-| `string` (other) | Text input | `text: 'Hello'` |
-| `boolean` | Toggle | `visible: true` |
+| Type                     | Control         | Example                                  |
+| ------------------------ | --------------- | ---------------------------------------- |
+| `number`                 | Slider + input  | `padding: 60`                            |
+| `string` (hex/rgb color) | Color picker    | `color: '#00ff9f'`                       |
+| `string` (gradient)      | Gradient editor | `background: 'linear-gradient(...)'`     |
+| `string` (box-shadow)    | Shadow editor   | `boxShadow: '0px 4px 20px...'`           |
+| `string` (easing)        | Curve editor    | `easing: 'cubic-bezier(0.4, 0, 0.2, 1)'` |
+| `string` (other)         | Text input      | `text: 'Hello'`                          |
+| `boolean`                | Toggle          | `visible: true`                          |
 
 ### Gradient Editor
 
 Visual editor for CSS gradients with:
+
 - Draggable color stops
 - Click to add stops, double-click to remove
 - Linear/Radial type toggle
@@ -166,6 +169,7 @@ Visual editor for CSS gradients with:
 ### Box Shadow Editor
 
 Visual editor for CSS box-shadows with:
+
 - X, Y, Blur, Spread sliders
 - Color picker
 - Inset toggle
@@ -173,14 +177,14 @@ Visual editor for CSS box-shadows with:
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `⌘⇧T` / `Ctrl+Shift+T` | Toggle control panel |
-| `⌘Z` / `Ctrl+Z` | Undo |
-| `⌘⇧Z` / `Ctrl+Shift+Z` | Redo |
+| Shortcut               | Action                 |
+| ---------------------- | ---------------------- |
+| `⌘⇧T` / `Ctrl+Shift+T` | Toggle control panel   |
+| `⌘Z` / `Ctrl+Z`        | Undo                   |
+| `⌘⇧Z` / `Ctrl+Shift+Z` | Redo                   |
 | `⌘⇧S` / `Ctrl+Shift+S` | Toggle spacing overlay |
-| `↑` / `↓` | Adjust number ±1 |
-| `Shift + ↑` / `↓` | Adjust number ±10 |
+| `↑` / `↓`              | Adjust number ±1       |
+| `Shift + ↑` / `↓`      | Adjust number ±10      |
 
 ## Code Preview
 
@@ -188,7 +192,6 @@ Click the `</>` button to open the code preview panel:
 
 - **Diff tab** - Shows changes as a diff from original values
 - **CSS Vars tab** - Exports all values as CSS custom properties
-
 
 ```css
 :root {
@@ -202,12 +205,12 @@ Click the `</>` button to open the code preview panel:
 
 Test your layouts at different viewport sizes:
 
-| Icon | Size | Width |
-|------|------|-------|
-| 📱 | Mobile | 375px |
-| 📟 | Tablet | 768px |
-| 🖥 | Desktop | 1024px |
-| ⬜ | Full | 100% |
+| Icon | Size    | Width  |
+| ---- | ------- | ------ |
+| 📱   | Mobile  | 375px  |
+| 📟   | Tablet  | 768px  |
+| 🖥   | Desktop | 1024px |
+| ⬜   | Full    | 100%   |
 
 ## How It Works
 
@@ -221,25 +224,40 @@ Test your layouts at different viewport sizes:
 ### `useTangent(id, defaultValues)`
 
 ```ts
-const values = useTangent('ComponentName', {
+const values = useTangent("ComponentName", {
   padding: 60,
-  color: '#fff',
-})
+  color: "#fff",
+});
 ```
 
 - `id` - Unique identifier for this set of values
 - `defaultValues` - Object with default values (number, string, or boolean)
-- Returns the current values object
+- Returns the current values object extended with `tangentProps`
+
+### `<TangentRoot>`
+
+Wrapper component that enables element highlighting.
+
+```tsx
+<TangentRoot tangent={values} as="section" className="hero">
+  {children}
+</TangentRoot>
+```
+
+Props:
+
+- `tangent` - The object returned from `useTangent`
+- `as` - (Optional) Component to render (default: `'div'`)
+- All other props are passed to the underlying element
 
 ### `<TangentProvider>`
 
 ```tsx
-<TangentProvider endpoint="/api/tangent/update">
-  {children}
-</TangentProvider>
+<TangentProvider endpoint="/api/tangent/update">{children}</TangentProvider>
 ```
 
 Props:
+
 - `endpoint` - API endpoint for updates (default: `/__tangent/update` for Vite)
 
 ## Development
@@ -278,26 +296,30 @@ We welcome contributions! Here's how to get started:
 ### Getting Started
 
 1. **Fork & Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/tangent.git
    cd tangent
    ```
 
 2. **Install Dependencies**
+
    ```bash
    pnpm install
    ```
 
 3. **Build Packages**
+
    ```bash
    pnpm build
    ```
 
 4. **Start Development**
+
    ```bash
    # Vite playground
    pnpm dev
-   
+
    # Or Next.js playground
    pnpm -C playground-next dev
    ```
@@ -305,6 +327,7 @@ We welcome contributions! Here's how to get started:
 ### Making Changes
 
 1. Create a feature branch
+
    ```bash
    git checkout -b feature/my-feature
    ```
@@ -314,6 +337,7 @@ We welcome contributions! Here's how to get started:
 3. Test your changes in both playgrounds
 
 4. Build to ensure no type errors
+
    ```bash
    pnpm build
    ```
@@ -342,6 +366,7 @@ We welcome contributions! Here's how to get started:
 ### Reporting Issues
 
 When reporting bugs, please include:
+
 - Browser and OS version
 - Framework (Vite/Next.js) and version
 - Steps to reproduce
@@ -349,12 +374,12 @@ When reporting bugs, please include:
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| `tangent-core` | React hooks and UI components |
-| `vite-plugin-tangent` | Vite plugin with dev server middleware |
-| `next-plugin-tangent` | Next.js plugin with API route handlers |
-| `tangent-transform` | Shared source code transformation logic |
+| Package               | Description                             |
+| --------------------- | --------------------------------------- |
+| `tangent-core`        | React hooks and UI components           |
+| `vite-plugin-tangent` | Vite plugin with dev server middleware  |
+| `next-plugin-tangent` | Next.js plugin with API route handlers  |
+| `tangent-transform`   | Shared source code transformation logic |
 
 ## License
 
